@@ -1,9 +1,8 @@
-import { get } from "@vercel/blob";
 import type { UIMessage } from "ai";
 
+import { readBlobBytes } from "@/lib/attachments/read-blob";
 import { blobPathnameFromFilePart } from "@/lib/attachments/pathname";
 import { getAttachmentByPathname } from "@/lib/db/attachments";
-import { getBlobAccess, getBlobReadWriteToken } from "@/lib/env/blob";
 import type { createClient } from "@/lib/supabase/server";
 
 import {
@@ -14,35 +13,6 @@ import {
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
 const MAX_IMAGE_BYTES_FOR_MODEL = 2 * 1024 * 1024;
-
-async function readBlobBytes(blobPathname: string) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000);
-
-  try {
-    const result = await get(blobPathname, {
-      access: getBlobAccess(),
-      token: getBlobReadWriteToken(),
-      abortSignal: controller.signal,
-    });
-
-    if (!result || result.statusCode !== 200 || !result.stream) {
-      throw new Error(
-        "Attachment file could not be read from storage. It may not have been uploaded successfully.",
-      );
-    }
-
-    const arrayBuffer = await new Response(result.stream).arrayBuffer();
-    return Buffer.from(arrayBuffer);
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("Timed out reading attachment from storage.");
-    }
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
 
 async function processFilePart(
   supabase: SupabaseClient,

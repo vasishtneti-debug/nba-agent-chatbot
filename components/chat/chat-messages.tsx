@@ -27,6 +27,7 @@ const TOOL_LABELS: Record<string, string> = {
   "tool-nbaGeneralSearch": "Searching league sources…",
   "tool-nbaExtract": "Reading source…",
   "tool-nbaWebSearch": "Scanning the wire…",
+  "tool-fillContract": "Filling contract…",
 };
 
 function isToolPart(part: UIMessage["parts"][number]): part is ToolPart {
@@ -52,13 +53,31 @@ function renderFilePart(
     );
   }
 
+  const label = part.filename ?? "Attachment";
+
+  if (part.url) {
+    return (
+      <a
+        key={`${messageId}-file-${index}`}
+        href={part.url}
+        download={label}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-2 rounded-md border border-border/50 bg-background/20 px-3 py-2 text-xs transition-colors hover:bg-background/40"
+      >
+        <PaperclipIcon className="size-4 shrink-0" />
+        <span className="truncate">{label}</span>
+      </a>
+    );
+  }
+
   return (
     <div
       key={`${messageId}-file-${index}`}
       className="flex items-center gap-2 rounded-md border border-border/50 bg-background/20 px-3 py-2 text-xs"
     >
       <PaperclipIcon className="size-4 shrink-0" />
-      <span className="truncate">{part.filename ?? "Attachment"}</span>
+      <span className="truncate">{label}</span>
     </div>
   );
 }

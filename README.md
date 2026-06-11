@@ -7,6 +7,7 @@ Production-ready NBA agent AI chatbot powered by Next.js 15, Vercel AI SDK, AI G
 - **Drew** — slick, confident NBA agent personality on every response
 - **Streaming chat** — word-by-word responses via `useChat` + `streamText`
 - **File attachments** — upload contracts, PDFs, spreadsheets, images (Vercel Blob + RLS-scoped metadata)
+- **Contract auto-fill** — upload a blank contract template; Drew detects placeholders, gathers deal terms, and returns a filled document (DOCX, PDF forms, or text)
 - **Real-time web search** — Tavily news, contracts/salary, general fallback, and URL extract tools
 - **Multi-chat sidebar** — ChatGPT-style conversation history
 - **Supabase Auth** — email/password + Google OAuth with RLS-protected data

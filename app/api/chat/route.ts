@@ -11,6 +11,7 @@ import {
   collectBlobPathnamesFromMessage,
   processMessageFiles,
 } from "@/lib/ai/files/process-attachments";
+import { appendFilledContractsToMessage } from "@/lib/ai/messages/append-filled-contracts";
 import { CHAT_MODEL, MAX_TOOL_STEPS } from "@/lib/ai/models";
 import { DREW_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { getNbaSearchTools } from "@/lib/ai/tools/web-search";
@@ -84,17 +85,27 @@ export async function POST(request: Request) {
     }
 
     const searchTools = getNbaSearchTools();
+    const { getFillContractTool } = await import("@/lib/ai/tools/fill-contract");
+    const fillContract = getFillContractTool({
+      supabase,
+      userId: user.id,
+      chatId,
+      messageId: savedUserMessage.id,
+      attachmentPathnames: blobPathnames,
+    });
+    const tools = { ...searchTools, fillContract };
+
     const messagesForModel = await processMessageFiles(supabase, messages, user.id);
 
     const modelMessages = await convertToModelMessages(messagesForModel, {
-      tools: searchTools,
+      tools,
     });
 
     const result = streamText({
       model: CHAT_MODEL,
       system: DREW_SYSTEM_PROMPT,
       messages: modelMessages,
-      tools: searchTools,
+      tools,
       stopWhen: stepCountIs(MAX_TOOL_STEPS),
     });
 
@@ -102,7 +113,8 @@ export async function POST(request: Request) {
       originalMessages: messages,
       generateMessageId: createMessageId,
       onFinish: async ({ responseMessage }) => {
-        await saveMessage(supabase, chatId, responseMessage);
+        const messageToSave = appendFilledContractsToMessage(responseMessage);
+        await saveMessage(supabase, chatId, messageToSave);
       },
     });
   } catch (error) {
