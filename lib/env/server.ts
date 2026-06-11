@@ -8,6 +8,10 @@ const serverEnvSchema = z.object({
   AI_GATEWAY_API_KEY: z.string().optional(),
 });
 
+export type ServerEnv = z.infer<typeof serverEnvSchema> & typeof publicEnv;
+
+let cachedServerEnv: Omit<ServerEnv, keyof typeof publicEnv> | null = null;
+
 function parseServerEnv() {
   const parsed = serverEnvSchema.safeParse({
     TAVILY_API_KEY: process.env.TAVILY_API_KEY,
@@ -24,5 +28,15 @@ function parseServerEnv() {
   return parsed.data;
 }
 
-export const serverEnv = parseServerEnv();
-export const env = { ...publicEnv, ...serverEnv };
+/** Validated at request time — not during `next build`. */
+export function getServerEnv(): ServerEnv {
+  if (!cachedServerEnv) {
+    cachedServerEnv = parseServerEnv();
+  }
+
+  return { ...publicEnv, ...cachedServerEnv };
+}
+
+export function getTavilyApiKey() {
+  return getServerEnv().TAVILY_API_KEY;
+}

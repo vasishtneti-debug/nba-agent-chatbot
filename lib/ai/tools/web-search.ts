@@ -1,11 +1,10 @@
 import { tavilySearch } from "@tavily/ai-sdk";
 
-import { env } from "@/lib/env/server";
+import { getTavilyApiKey } from "@/lib/env/server";
 
-export const nbaWebSearch = tavilySearch({
-  apiKey: env.TAVILY_API_KEY,
-  searchDepth: "advanced",
-  topic: "news",
+const searchOptions = {
+  searchDepth: "advanced" as const,
+  topic: "news" as const,
   maxResults: 5,
   includeAnswer: true,
   includeDomains: [
@@ -15,4 +14,18 @@ export const nbaWebSearch = tavilySearch({
     "basketball-reference.com",
     "bleacherreport.com",
   ],
-});
+};
+
+let cachedTool: ReturnType<typeof tavilySearch> | null = null;
+
+/** Lazily created so `next build` does not require TAVILY_API_KEY. */
+export function getNbaWebSearch() {
+  if (!cachedTool) {
+    cachedTool = tavilySearch({
+      apiKey: getTavilyApiKey(),
+      ...searchOptions,
+    });
+  }
+
+  return cachedTool;
+}

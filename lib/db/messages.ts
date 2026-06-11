@@ -39,10 +39,10 @@ export async function saveMessage(
     throw new Error(`Unsupported message role: ${message.role}`);
   }
 
+  // Let Postgres generate a UUID — AI SDK message ids (e.g. "QZK0fTFBhQoakbZL") are not UUIDs.
   const { data, error } = await supabase
     .from("messages")
     .insert({
-      id: message.id,
       chat_id: chatId,
       role,
       parts: message.parts as Json,
@@ -64,7 +64,6 @@ export async function upsertMessage(
   const { data, error } = await supabase
     .from("messages")
     .upsert({
-      id: message.id,
       chat_id: chatId,
       role,
       parts: message.parts as Json,

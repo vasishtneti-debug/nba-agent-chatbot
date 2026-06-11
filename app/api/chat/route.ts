@@ -1,6 +1,5 @@
 import {
   convertToModelMessages,
-  generateId,
   stepCountIs,
   streamText,
   type UIMessage,
@@ -10,18 +9,16 @@ import { z } from "zod";
 
 import { CHAT_MODEL, MAX_TOOL_STEPS } from "@/lib/ai/models";
 import { DREW_SYSTEM_PROMPT } from "@/lib/ai/prompts";
-import { nbaWebSearch } from "@/lib/ai/tools/web-search";
+import { getNbaWebSearch } from "@/lib/ai/tools/web-search";
 import { getChat, updateChatTitle } from "@/lib/db/chats";
 import { saveMessage } from "@/lib/db/messages";
+import { createMessageId } from "@/lib/ids";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { truncate } from "@/lib/utils";
 
 export const maxDuration = 60;
 
-const requestSchema = z.object({
-  chatId: z.string().uuid(),
-  messages: z.array(z.custom<UIMessage>()),
-});
+const messageListSchema = z.array(z.custom<UIMessage>());
 
 function getTextFromMessage(message: UIMessage) {
   return message.parts
@@ -38,7 +35,8 @@ export async function POST(request: Request) {
     }
 
     const json = await request.json();
-    const { chatId, messages } = requestSchema.parse(json);
+    const chatId = z.string().uuid().parse(json.chatId);
+    const messages = messageListSchema.parse(json.messages);
 
     const supabase = await createClient();
     const chat = await getChat(supabase, chatId, user.id);
@@ -59,6 +57,8 @@ export async function POST(request: Request) {
       await updateChatTitle(supabase, chatId, user.id, title);
     }
 
+    const nbaWebSearch = getNbaWebSearch();
+
     const modelMessages = await convertToModelMessages(messages, {
       tools: { nbaWebSearch },
     });
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
 
     return result.toUIMessageStreamResponse({
       originalMessages: messages,
-      generateMessageId: generateId,
+      generateMessageId: createMessageId,
       onFinish: async ({ responseMessage }) => {
         await saveMessage(supabase, chatId, responseMessage);
       },
@@ -82,6 +82,15 @@ export async function POST(request: Request) {
     console.error("Chat API error:", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    }
+    if (
+      error instanceof Error &&
+      error.message.includes("TAVILY_API_KEY")
+    ) {
+      return NextResponse.json(
+        { error: "Web search is not configured. Set TAVILY_API_KEY." },
+        { status: 503 },
+      );
     }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

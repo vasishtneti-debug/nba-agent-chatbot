@@ -7,6 +7,7 @@ import { useMemo } from "react";
 import { ChatHeader } from "@/components/chat/chat-header";
 import { MessageInput } from "@/components/chat/message-input";
 import { MessageList } from "@/components/chat/message-list";
+import { createMessageId } from "@/lib/ids";
 
 type ChatInterfaceProps = {
   chatId: string;
@@ -23,7 +24,13 @@ export function ChatInterface({
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        body: { chatId },
+        prepareSendMessagesRequest: ({ body, messages }) => ({
+          body: {
+            ...body,
+            chatId,
+            messages,
+          },
+        }),
       }),
     [chatId],
   );
@@ -32,6 +39,7 @@ export function ChatInterface({
     id: chatId,
     messages: initialMessages,
     transport,
+    generateId: createMessageId,
   });
 
   const isBusy = status === "submitted" || status === "streaming";
