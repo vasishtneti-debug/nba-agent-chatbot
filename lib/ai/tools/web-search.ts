@@ -1,31 +1,59 @@
-import { tavilySearch } from "@tavily/ai-sdk";
+import { tavilyExtract, tavilySearch } from "@tavily/ai-sdk";
 
 import { getTavilyApiKey } from "@/lib/env/server";
 
-const searchOptions = {
-  searchDepth: "advanced" as const,
-  topic: "news" as const,
-  maxResults: 5,
-  includeAnswer: true,
-  includeDomains: [
-    "espn.com",
-    "nba.com",
-    "theathletic.com",
-    "basketball-reference.com",
-    "bleacherreport.com",
-  ],
-};
+import { NBA_CONTRACTS_DOMAINS, NBA_NEWS_DOMAINS } from "./search-domains";
 
-let cachedTool: ReturnType<typeof tavilySearch> | null = null;
+function createTavilyTools() {
+  const apiKey = getTavilyApiKey();
+
+  const nbaNewsSearch = tavilySearch({
+    apiKey,
+    searchDepth: "advanced",
+    topic: "news",
+    maxResults: 6,
+    includeAnswer: true,
+    includeDomains: [...NBA_NEWS_DOMAINS],
+  });
+
+  const nbaContractsSearch = tavilySearch({
+    apiKey,
+    searchDepth: "advanced",
+    topic: "finance",
+    maxResults: 8,
+    includeAnswer: "advanced",
+    includeRawContent: "markdown",
+    includeDomains: [...NBA_CONTRACTS_DOMAINS],
+  });
+
+  const nbaGeneralSearch = tavilySearch({
+    apiKey,
+    searchDepth: "advanced",
+    topic: "general",
+    maxResults: 6,
+    includeAnswer: true,
+  });
+
+  const nbaExtract = tavilyExtract({
+    apiKey,
+    extractDepth: "advanced",
+    format: "markdown",
+  });
+
+  return { nbaNewsSearch, nbaContractsSearch, nbaGeneralSearch, nbaExtract };
+}
+
+let cachedTools: ReturnType<typeof createTavilyTools> | null = null;
 
 /** Lazily created so `next build` does not require TAVILY_API_KEY. */
-export function getNbaWebSearch() {
-  if (!cachedTool) {
-    cachedTool = tavilySearch({
-      apiKey: getTavilyApiKey(),
-      ...searchOptions,
-    });
+export function getNbaSearchTools() {
+  if (!cachedTools) {
+    cachedTools = createTavilyTools();
   }
+  return cachedTools;
+}
 
-  return cachedTool;
+/** @deprecated Use getNbaSearchTools().nbaNewsSearch */
+export function getNbaWebSearch() {
+  return getNbaSearchTools().nbaNewsSearch;
 }

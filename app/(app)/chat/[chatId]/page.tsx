@@ -29,6 +29,7 @@ export default async function ChatPage({ params }: ChatPageProps) {
     <ChatInterface
       chatId={chat.id}
       chatTitle={chat.title}
+      userId={user.id}
       initialMessages={messages}
     />
   );

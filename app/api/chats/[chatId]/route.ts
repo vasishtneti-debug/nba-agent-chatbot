@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { deleteChatBlobFiles } from "@/lib/db/blob-cleanup";
 import { deleteChat, getChat, updateChatTitle } from "@/lib/db/chats";
 import { getMessages } from "@/lib/db/messages";
 import { createClient, getUser } from "@/lib/supabase/server";
@@ -62,6 +63,12 @@ export async function DELETE(_request: Request, context: RouteContext) {
   const existing = await getChat(supabase, chatId, user.id);
   if (!existing) {
     return NextResponse.json({ error: "Chat not found" }, { status: 404 });
+  }
+
+  try {
+    await deleteChatBlobFiles(supabase, chatId, user.id);
+  } catch (error) {
+    console.error("Blob cleanup failed for chat", chatId, error);
   }
 
   await deleteChat(supabase, chatId, user.id);

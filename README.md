@@ -6,7 +6,8 @@ Production-ready NBA agent AI chatbot powered by Next.js 15, Vercel AI SDK, AI G
 
 - **Drew** — slick, confident NBA agent personality on every response
 - **Streaming chat** — word-by-word responses via `useChat` + `streamText`
-- **Real-time web search** — Tavily API for current news, trades, injuries, standings
+- **File attachments** — upload contracts, PDFs, spreadsheets, images (Vercel Blob + RLS-scoped metadata)
+- **Real-time web search** — Tavily news, contracts/salary, general fallback, and URL extract tools
 - **Multi-chat sidebar** — ChatGPT-style conversation history
 - **Supabase Auth** — email/password + Google OAuth with RLS-protected data
 
@@ -44,7 +45,7 @@ Production-ready NBA agent AI chatbot powered by Next.js 15, Vercel AI SDK, AI G
 
 4. **Supabase database**
 
-   Run the migration in [`supabase/migrations/001_init_schema.sql`](supabase/migrations/001_init_schema.sql) via the Supabase SQL editor or CLI.
+   Run migrations in [`supabase/migrations/`](supabase/migrations/) via the Supabase SQL editor or CLI.
 
    Enable Auth providers in Supabase Dashboard → Authentication → Providers:
    - Email
@@ -66,6 +67,7 @@ Production-ready NBA agent AI chatbot powered by Next.js 15, Vercel AI SDK, AI G
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key |
 | `NEXT_PUBLIC_APP_URL` | Yes | App URL for OAuth redirects |
 | `TAVILY_API_KEY` | Yes | Tavily search API key |
+| `BLOB_READ_WRITE_TOKEN` | Yes | Vercel Blob token (auto-provisioned when Blob store is linked) |
 | `VERCEL_OIDC_TOKEN` | Local dev | From `vercel env pull` |
 | `AI_GATEWAY_API_KEY` | Optional | Fallback for non-Vercel deploys |
 
@@ -80,10 +82,10 @@ Production-ready NBA agent AI chatbot powered by Next.js 15, Vercel AI SDK, AI G
 
 ```
 User → Next.js (useChat) → POST /api/chat → AI Gateway (gpt-5.4)
-                                      ↓
-                              Tavily web search
-                                      ↓
-                              Supabase (messages)
+         ↓ upload                         ↓
+  Vercel Blob (private)          Tavily search tools
+         ↓                               ↓
+  Supabase attachments (RLS)     Supabase (messages)
 ```
 
 ## Scripts

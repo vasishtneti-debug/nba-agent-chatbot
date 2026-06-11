@@ -7,9 +7,14 @@ import {
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import {
+  collectBlobPathnamesFromMessage,
+  processMessageFiles,
+} from "@/lib/ai/files/process-attachments";
 import { CHAT_MODEL, MAX_TOOL_STEPS } from "@/lib/ai/models";
 import { DREW_SYSTEM_PROMPT } from "@/lib/ai/prompts";
-import { getNbaWebSearch } from "@/lib/ai/tools/web-search";
+import { getNbaSearchTools } from "@/lib/ai/tools/web-search";
+import { linkAttachmentsToMessage } from "@/lib/db/attachments";
 import { getChat, updateChatTitle } from "@/lib/db/chats";
 import { saveMessage } from "@/lib/db/messages";
 import { createMessageId } from "@/lib/ids";
@@ -21,10 +26,21 @@ export const maxDuration = 60;
 const messageListSchema = z.array(z.custom<UIMessage>());
 
 function getTextFromMessage(message: UIMessage) {
-  return message.parts
+  const textParts = message.parts
     .filter((part) => part.type === "text")
     .map((part) => part.text)
     .join("");
+
+  const fileParts = message.parts
+    .filter((part) => part.type === "file")
+    .map((part) => part.filename ?? "file")
+    .join(", ");
+
+  if (textParts && fileParts) {
+    return `${textParts} [${fileParts}]`;
+  }
+
+  return textParts || (fileParts ? `Attachment: ${fileParts}` : "");
 }
 
 export async function POST(request: Request) {
@@ -49,7 +65,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Last message must be from user" }, { status: 400 });
     }
 
-    await saveMessage(supabase, chatId, lastMessage);
+    const savedUserMessage = await saveMessage(supabase, chatId, lastMessage);
+
+    const blobPathnames = collectBlobPathnamesFromMessage(lastMessage);
+    if (blobPathnames.length > 0) {
+      await linkAttachmentsToMessage(
+        supabase,
+        blobPathnames,
+        savedUserMessage.id,
+        user.id,
+      );
+    }
 
     const isFirstUserMessage = messages.filter((m) => m.role === "user").length === 1;
     if (isFirstUserMessage && chat.title === "New Chat") {
@@ -57,17 +83,18 @@ export async function POST(request: Request) {
       await updateChatTitle(supabase, chatId, user.id, title);
     }
 
-    const nbaWebSearch = getNbaWebSearch();
+    const searchTools = getNbaSearchTools();
+    const messagesForModel = await processMessageFiles(supabase, messages, user.id);
 
-    const modelMessages = await convertToModelMessages(messages, {
-      tools: { nbaWebSearch },
+    const modelMessages = await convertToModelMessages(messagesForModel, {
+      tools: searchTools,
     });
 
     const result = streamText({
       model: CHAT_MODEL,
       system: DREW_SYSTEM_PROMPT,
       messages: modelMessages,
-      tools: { nbaWebSearch },
+      tools: searchTools,
       stopWhen: stepCountIs(MAX_TOOL_STEPS),
     });
 
@@ -89,6 +116,15 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json(
         { error: "Web search is not configured. Set TAVILY_API_KEY." },
+        { status: 503 },
+      );
+    }
+    if (
+      error instanceof Error &&
+      error.message.includes("BLOB_READ_WRITE_TOKEN")
+    ) {
+      return NextResponse.json(
+        { error: "File storage is not configured. Set BLOB_READ_WRITE_TOKEN." },
         { status: 503 },
       );
     }

@@ -78,6 +78,42 @@ export type Database = {
         };
         Relationships: [];
       };
+      attachments: {
+        Row: {
+          id: string;
+          user_id: string;
+          chat_id: string;
+          message_id: string | null;
+          blob_pathname: string;
+          filename: string;
+          media_type: string;
+          size_bytes: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          chat_id: string;
+          message_id?: string | null;
+          blob_pathname: string;
+          filename: string;
+          media_type: string;
+          size_bytes: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          chat_id?: string;
+          message_id?: string | null;
+          blob_pathname?: string;
+          filename?: string;
+          media_type?: string;
+          size_bytes?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

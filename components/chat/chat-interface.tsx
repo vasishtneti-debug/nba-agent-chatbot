@@ -13,31 +13,50 @@ import {
 } from "@/components/ai-elements/conversation";
 import {
   PromptInput,
+  PromptInputActionAddAttachments,
+  PromptInputActionMenu,
+  PromptInputActionMenuContent,
+  PromptInputActionMenuTrigger,
   PromptInputBody,
   PromptInputFooter,
   type PromptInputMessage,
-  PromptInputSubmit,
+  PromptInputHeader,
   PromptInputTextarea,
+  PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
+import {
+  AttachmentChips,
+  AttachmentDropHint,
+  AttachmentPromptSubmit,
+} from "@/components/chat/attachment-chips";
 import { ChatHeader } from "@/components/chat/chat-header";
 import { ChatMessages } from "@/components/chat/chat-messages";
 import { SUGGESTED_PROMPTS } from "@/components/chat/suggested-prompts";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  MAX_ATTACHMENT_BYTES,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+} from "@/lib/attachments/constants";
+import { uploadAttachmentParts } from "@/lib/attachments/upload-client";
 import { createMessageId } from "@/lib/ids";
 
 type ChatInterfaceProps = {
   chatId: string;
   chatTitle: string;
+  userId: string;
   initialMessages: UIMessage[];
 };
 
 export function ChatInterface({
   chatId,
   chatTitle,
+  userId,
   initialMessages,
 }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const transport = useMemo(
     () =>
@@ -61,22 +80,47 @@ export function ChatInterface({
     generateId: createMessageId,
   });
 
-  const isBusy = status === "submitted" || status === "streaming";
+  const isBusy =
+    status === "submitted" || status === "streaming" || isUploading;
   const showPendingAssistant =
-    status === "submitted" &&
-    messages.at(-1)?.role === "user";
+    status === "submitted" && messages.at(-1)?.role === "user";
 
-  function handleSubmit(message: PromptInputMessage) {
+  async function handleSubmit(message: PromptInputMessage) {
     const text = message.text.trim();
-    if (!text || isBusy) return;
-    void sendMessage({ text });
-    setInput("");
+    const hasFiles = message.files.length > 0;
+    if ((!text && !hasFiles) || isBusy) return;
+
+    setUploadError(null);
+
+    try {
+      setIsUploading(true);
+      const uploadedFiles = hasFiles
+        ? await uploadAttachmentParts(message.files, chatId, userId)
+        : [];
+
+      void sendMessage({
+        text: text || "Review the attached file(s).",
+        files: uploadedFiles,
+      });
+      setInput("");
+    } catch (uploadErr) {
+      console.error("Attachment upload failed:", uploadErr);
+      setUploadError(
+        uploadErr instanceof Error
+          ? uploadErr.message
+          : "Failed to upload attachments.",
+      );
+    } finally {
+      setIsUploading(false);
+    }
   }
 
   function handleSuggestionClick(suggestion: string) {
     if (isBusy) return;
     void sendMessage({ text: suggestion });
   }
+
+  const displayError = uploadError || error?.message;
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
@@ -114,9 +158,9 @@ export function ChatInterface({
         <ConversationScrollButton />
       </Conversation>
 
-      {error && (
+      {displayError && (
         <div className="border-t border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-          {error.message || "Something went wrong. Try again."}
+          {displayError || "Something went wrong. Try again."}
         </div>
       )}
 
@@ -136,20 +180,42 @@ export function ChatInterface({
             </Suggestions>
           )}
 
-          <PromptInput onSubmit={handleSubmit}>
+          <PromptInput
+            onSubmit={handleSubmit}
+            multiple
+            maxFiles={MAX_ATTACHMENTS_PER_MESSAGE}
+            maxFileSize={MAX_ATTACHMENT_BYTES}
+            onError={(err) => setUploadError(err.message)}
+          >
+            <PromptInputHeader>
+              <AttachmentChips />
+            </PromptInputHeader>
             <PromptInputBody>
               <PromptInputTextarea
                 value={input}
                 onChange={(e) => setInput(e.currentTarget.value)}
-                placeholder="Ask Drew about trades, injuries, standings…"
+                placeholder="Ask Drew about trades, injuries, contracts…"
                 disabled={isBusy}
               />
             </PromptInputBody>
-            <PromptInputFooter className="justify-end">
-              <PromptInputSubmit
+            <PromptInputFooter>
+              <PromptInputTools>
+                <PromptInputActionMenu>
+                  <PromptInputActionMenuTrigger
+                    tooltip="Add attachment"
+                    disabled={isBusy}
+                  />
+                  <PromptInputActionMenuContent>
+                    <PromptInputActionAddAttachments label="Add files" />
+                  </PromptInputActionMenuContent>
+                </PromptInputActionMenu>
+                <AttachmentDropHint />
+              </PromptInputTools>
+              <AttachmentPromptSubmit
+                input={input}
                 status={status}
+                isUploading={isUploading}
                 onStop={stop}
-                disabled={!input.trim() && !isBusy}
               />
             </PromptInputFooter>
           </PromptInput>
