@@ -46,10 +46,15 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  const safeFilename = attachment.filename.replace(/"/g, "");
+  const disposition = attachment.media_type.startsWith("image/")
+    ? "inline"
+    : "attachment";
+
   return new NextResponse(result.stream, {
     headers: {
       "Content-Type": attachment.media_type,
-      "Content-Disposition": `inline; filename="${attachment.filename.replace(/"/g, "")}"`,
+      "Content-Disposition": `${disposition}; filename="${safeFilename}"`,
       "Cache-Control": "private, max-age=3600",
     },
   });

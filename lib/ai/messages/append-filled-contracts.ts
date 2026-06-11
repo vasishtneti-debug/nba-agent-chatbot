@@ -6,14 +6,16 @@ type ToolPart = UIMessage["parts"][number] & {
   output?: unknown;
 };
 
-function isFillContractOutput(
-  output: unknown,
-): output is {
+export type FillContractOutput = {
   success: true;
   downloadUrl: string;
   filename: string;
   mediaType: string;
-} {
+};
+
+export function isFillContractOutput(
+  output: unknown,
+): output is FillContractOutput {
   if (!output || typeof output !== "object") return false;
   const value = output as Record<string, unknown>;
   return (
