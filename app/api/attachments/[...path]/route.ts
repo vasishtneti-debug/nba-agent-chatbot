@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { parseAttachmentProxyPath } from "@/lib/attachments/constants";
 import { getAttachmentByPathname } from "@/lib/db/attachments";
-import { getBlobReadWriteToken } from "@/lib/env/blob";
+import { getBlobAccess, getBlobReadWriteToken } from "@/lib/env/blob";
 import { createClient, getUser } from "@/lib/supabase/server";
 
 type RouteContext = {
@@ -38,7 +38,7 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   const result = await get(parsed.blobPathname, {
-    access: "private",
+    access: getBlobAccess(),
     token: getBlobReadWriteToken(),
   });
 

@@ -1,11 +1,4 @@
-import { upload } from "@vercel/blob/client";
 import type { FileUIPart } from "ai";
-import { nanoid } from "nanoid";
-
-import {
-  buildAttachmentBlobPath,
-  buildAttachmentProxyUrl,
-} from "@/lib/attachments/constants";
 
 const MAX_IMAGE_WIDTH = 1600;
 const JPEG_QUALITY = 0.85;
@@ -59,78 +52,50 @@ async function resizeImageIfNeeded(file: File): Promise<File> {
   }
 }
 
-async function registerAttachment(
-  chatId: string,
-  blobPathname: string,
-  filename: string,
-  mediaType: string,
-  sizeBytes: number,
-) {
-  const response = await fetch("/api/attachments/register", {
+async function uploadFileToServer(file: File, chatId: string): Promise<FileUIPart> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("chatId", chatId);
+
+  const response = await fetch("/api/attachments/file", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chatId,
-      blobPathname,
-      filename,
-      mediaType,
-      sizeBytes,
-    }),
+    body: formData,
   });
 
+  const payload = (await response.json().catch(() => null)) as {
+    error?: string;
+    url?: string;
+    filename?: string;
+    mediaType?: string;
+  } | null;
+
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as {
-      error?: string;
-    } | null;
-    throw new Error(payload?.error ?? "Failed to register attachment.");
+    throw new Error(payload?.error ?? "Failed to upload attachment.");
   }
+
+  if (!payload?.url) {
+    throw new Error("Upload succeeded but no file URL was returned.");
+  }
+
+  return {
+    type: "file",
+    filename: payload.filename ?? file.name,
+    mediaType: payload.mediaType ?? file.type,
+    url: payload.url,
+  };
 }
 
 export async function uploadAttachmentParts(
   parts: FileUIPart[],
   chatId: string,
-  userId: string,
+  _userId: string,
 ): Promise<FileUIPart[]> {
   const uploaded: FileUIPart[] = [];
 
   for (const part of parts) {
     const rawFile = await filePartToFile(part);
     const file = await resizeImageIfNeeded(rawFile);
-    const fileId = nanoid();
-    const pathname = buildAttachmentBlobPath(
-      userId,
-      chatId,
-      fileId,
-      file.name,
-    );
-
-    const clientPayload = JSON.stringify({
-      chatId,
-      filename: file.name,
-      mediaType: file.type || "application/octet-stream",
-      sizeBytes: file.size,
-    });
-
-    const blob = await upload(pathname, file, {
-      access: "private",
-      handleUploadUrl: "/api/attachments/upload",
-      clientPayload,
-    });
-
-    await registerAttachment(
-      chatId,
-      blob.pathname,
-      file.name,
-      file.type || "application/octet-stream",
-      file.size,
-    );
-
-    uploaded.push({
-      type: "file",
-      filename: file.name,
-      mediaType: file.type || "application/octet-stream",
-      url: buildAttachmentProxyUrl(blob.pathname),
-    });
+    uploaded.push(await uploadFileToServer(file, chatId));
   }
 
   return uploaded;

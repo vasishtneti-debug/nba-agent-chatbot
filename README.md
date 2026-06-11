@@ -68,6 +68,7 @@ Production-ready NBA agent AI chatbot powered by Next.js 15, Vercel AI SDK, AI G
 | `NEXT_PUBLIC_APP_URL` | Yes | App URL for OAuth redirects |
 | `TAVILY_API_KEY` | Yes | Tavily search API key |
 | `BLOB_READ_WRITE_TOKEN` | Yes | Vercel Blob token (auto-provisioned when Blob store is linked) |
+| `BLOB_ACCESS` | Optional | `public` (default) or `private` — must match your Blob store type |
 | `VERCEL_OIDC_TOKEN` | Local dev | From `vercel env pull` |
 | `AI_GATEWAY_API_KEY` | Optional | Fallback for non-Vercel deploys |
 

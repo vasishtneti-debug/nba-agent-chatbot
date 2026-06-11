@@ -145,10 +145,14 @@ export function ChatInterface({
             <ChatMessages messages={messages} />
           )}
 
-          {showPendingAssistant && (
+          {(isUploading || showPendingAssistant) && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Spinner className="size-4 text-primary" />
-              <span>Drew is on the line…</span>
+              <span>
+                {isUploading
+                  ? "Uploading attachment…"
+                  : "Drew is on the line…"}
+              </span>
             </div>
           )}
         </ConversationContent>
