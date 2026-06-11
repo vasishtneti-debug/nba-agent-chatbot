@@ -1,2 +1,2 @@
-export const CHAT_MODEL = "openai/gpt-4o-mini";
+export const CHAT_MODEL = "openai/gpt-5.4-mini";
 export const MAX_TOOL_STEPS = 5;
