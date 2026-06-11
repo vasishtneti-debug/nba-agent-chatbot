@@ -4,6 +4,7 @@ import type { ChatStatus } from "ai";
 import { PaperclipIcon, XIcon } from "lucide-react";
 
 import {
+  PromptInputButton,
   PromptInputSubmit,
   usePromptInputAttachments,
 } from "@/components/ai-elements/prompt-input";
@@ -47,6 +48,26 @@ export function AttachmentChips() {
         );
       })}
     </div>
+  );
+}
+
+type AttachmentAddButtonProps = {
+  disabled?: boolean;
+};
+
+export function AttachmentAddButton({ disabled }: AttachmentAddButtonProps) {
+  const attachments = usePromptInputAttachments();
+
+  return (
+    <PromptInputButton
+      type="button"
+      tooltip="Add files"
+      disabled={disabled}
+      onClick={() => attachments.openFileDialog()}
+      aria-label="Add files"
+    >
+      <PaperclipIcon className="size-4" />
+    </PromptInputButton>
   );
 }
 

@@ -13,10 +13,6 @@ import {
 } from "@/components/ai-elements/conversation";
 import {
   PromptInput,
-  PromptInputActionAddAttachments,
-  PromptInputActionMenu,
-  PromptInputActionMenuContent,
-  PromptInputActionMenuTrigger,
   PromptInputBody,
   PromptInputFooter,
   type PromptInputMessage,
@@ -26,6 +22,7 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import {
+  AttachmentAddButton,
   AttachmentChips,
   AttachmentDropHint,
   AttachmentPromptSubmit,
@@ -98,7 +95,7 @@ export function ChatInterface({
         ? await uploadAttachmentParts(message.files, chatId, userId)
         : [];
 
-      void sendMessage({
+      await sendMessage({
         text: text || "Review the attached file(s).",
         files: uploadedFiles,
       });
@@ -200,15 +197,7 @@ export function ChatInterface({
             </PromptInputBody>
             <PromptInputFooter>
               <PromptInputTools>
-                <PromptInputActionMenu>
-                  <PromptInputActionMenuTrigger
-                    tooltip="Add attachment"
-                    disabled={isBusy}
-                  />
-                  <PromptInputActionMenuContent>
-                    <PromptInputActionAddAttachments label="Add files" />
-                  </PromptInputActionMenuContent>
-                </PromptInputActionMenu>
+                <AttachmentAddButton disabled={isBusy} />
                 <AttachmentDropHint />
               </PromptInputTools>
               <AttachmentPromptSubmit

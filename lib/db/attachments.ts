@@ -20,6 +20,20 @@ export async function createAttachment(
   return data;
 }
 
+export async function upsertAttachment(
+  supabase: Client,
+  input: Database["public"]["Tables"]["attachments"]["Insert"],
+) {
+  const { data, error } = await supabase
+    .from("attachments")
+    .upsert(input, { onConflict: "blob_pathname" })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function getAttachmentByPathname(
   supabase: Client,
   blobPathname: string,

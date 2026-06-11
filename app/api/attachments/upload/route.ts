@@ -5,9 +5,8 @@ import { z } from "zod";
 import {
   ATTACHMENTS_BLOB_PREFIX,
   MAX_ATTACHMENT_BYTES,
-  MAX_ATTACHMENTS_PER_MESSAGE,
 } from "@/lib/attachments/constants";
-import { createAttachment, listAttachmentsForChat } from "@/lib/db/attachments";
+import { upsertAttachment } from "@/lib/db/attachments";
 import { getChat } from "@/lib/db/chats";
 import { getBlobReadWriteToken } from "@/lib/env/blob";
 import { createClient, getUser } from "@/lib/supabase/server";
@@ -50,14 +49,6 @@ export async function POST(request: Request) {
           throw new Error("Chat not found.");
         }
 
-        const pending = await listAttachmentsForChat(supabase, payload.chatId, user.id);
-        const unlinked = pending.filter((row) => row.message_id === null);
-        if (unlinked.length >= MAX_ATTACHMENTS_PER_MESSAGE) {
-          throw new Error(
-            `Maximum ${MAX_ATTACHMENTS_PER_MESSAGE} attachments per message.`,
-          );
-        }
-
         return {
           maximumSizeInBytes: MAX_ATTACHMENT_BYTES,
           addRandomSuffix: false,
@@ -73,7 +64,7 @@ export async function POST(request: Request) {
         }
 
         const supabase = await createClient();
-        await createAttachment(supabase, {
+        await upsertAttachment(supabase, {
           user_id: user.id,
           chat_id: payload.chatId,
           blob_pathname: blob.pathname,
