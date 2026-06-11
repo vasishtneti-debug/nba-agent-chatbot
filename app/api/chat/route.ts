@@ -12,6 +12,10 @@ import {
   processMessageFiles,
 } from "@/lib/ai/files/process-attachments";
 import { appendFilledContractsToMessage } from "@/lib/ai/messages/append-filled-contracts";
+import {
+  isContextLengthError,
+  trimMessagesForModel,
+} from "@/lib/ai/messages/trim-context";
 import { CHAT_MODEL, MAX_TOOL_STEPS } from "@/lib/ai/models";
 import { DREW_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { getNbaSearchTools } from "@/lib/ai/tools/web-search";
@@ -95,7 +99,11 @@ export async function POST(request: Request) {
     });
     const tools = { ...searchTools, fillContract };
 
-    const messagesForModel = await processMessageFiles(supabase, messages, user.id);
+    const messagesForModel = await processMessageFiles(
+      supabase,
+      trimMessagesForModel(messages),
+      user.id,
+    );
 
     const modelMessages = await convertToModelMessages(messagesForModel, {
       tools,
@@ -112,6 +120,12 @@ export async function POST(request: Request) {
     return result.toUIMessageStreamResponse({
       originalMessages: messages,
       generateMessageId: createMessageId,
+      onError: (error) => {
+        if (isContextLengthError(error)) {
+          return "This conversation is too long for the model. Start a new chat or send a shorter message with a smaller attachment.";
+        }
+        return error instanceof Error ? error.message : "Something went wrong.";
+      },
       onFinish: async ({ responseMessage }) => {
         const messageToSave = appendFilledContractsToMessage(responseMessage);
         await saveMessage(supabase, chatId, messageToSave);
@@ -138,6 +152,15 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "File storage is not configured. Set BLOB_READ_WRITE_TOKEN." },
         { status: 503 },
+      );
+    }
+    if (isContextLengthError(error)) {
+      return NextResponse.json(
+        {
+          error:
+            "This conversation is too long for the model. Start a new chat or send a shorter message with a smaller attachment.",
+        },
+        { status: 413 },
       );
     }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

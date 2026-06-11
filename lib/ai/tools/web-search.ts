@@ -20,9 +20,8 @@ function createTavilyTools() {
     apiKey,
     searchDepth: "advanced",
     topic: "finance",
-    maxResults: 8,
+    maxResults: 5,
     includeAnswer: "advanced",
-    includeRawContent: "markdown",
     includeDomains: [...NBA_CONTRACTS_DOMAINS],
   });
 

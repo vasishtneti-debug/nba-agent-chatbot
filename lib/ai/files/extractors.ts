@@ -2,7 +2,7 @@ import mammoth from "mammoth";
 import { extractText, getDocumentProxy } from "unpdf";
 import * as XLSX from "xlsx";
 
-const MAX_EXTRACTED_CHARS = 12_000;
+const MAX_EXTRACTED_CHARS = 8_000;
 
 function truncateText(text: string) {
   if (text.length <= MAX_EXTRACTED_CHARS) return text;
